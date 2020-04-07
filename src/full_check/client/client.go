@@ -352,7 +352,7 @@ func (p *RedisClient) PipeTTLCommand(keyInfo []*common.Key) ([]bool, error) {
 	} else {
 		for i, ele := range ret {
 			if v, ok := ele.(int64); ok {
-				result[i] = v == 0
+				result[i] = (v == 0 || v == -2)
 			} else {
 				err := fmt.Errorf("run PipeRawCommand with commands[%s] return element[%v] isn't type int64[%v]",
 					printCombinList(commands), ele, reflect.TypeOf(ele))
