@@ -325,10 +325,11 @@ func (p *RedisClient) PipeLenCommand(keyInfo []*common.Key) ([]int64, error) {
 			if v, ok := ele.(int64); ok {
 				result[i] = v
 			} else {
-				err := fmt.Errorf("run PipeRawCommand with commands[%s] return element[%v] isn't type int64[%v]",
-					printCombinList(commands), ele, reflect.TypeOf(ele))
-				common.Logger.Error(err)
-				return nil, err
+				//err := fmt.Errorf("run PipeRawCommand with commands[%s] return element[%v] isn't type int64[%v]",
+				//	printCombinList(commands), ele, reflect.TypeOf(ele))
+				//common.Logger.Error(err)
+				//return nil, err
+				result[i] = common.TypeChanged
 			}
 		}
 	}

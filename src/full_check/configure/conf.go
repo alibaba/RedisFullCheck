@@ -13,6 +13,7 @@ var Opts struct {
 	TargetDBFilterList string `long:"targetdbfilterlist" default:"-1" description:"db white list that need to be compared, -1 means fetch all, \"0;5;15\" means fetch db 0, 5, and 15"`
 	ResultDBFile       string `short:"d" long:"db" value-name:"Sqlite3-DB-FILE" default:"result.db" description:"sqlite3 db file for store result. If exist, it will be removed and a new file is created."`
 	ResultFile         string `long:"result" value-name:"FILE" description:"store all diff result into the file, format is 'db\tdiff-type\tkey\tfield'"`
+	ResultBytesLimit   int    `long:"resultbyteslimit" value-NAME:"RESULT-BYTES-LIMIT" default:"10485760" description:"total bytes allowed to store the temp data in target redis"`
 	CompareTimes       string `long:"comparetimes" value-name:"COUNT" default:"3" description:"Total compare count, at least 1. In the first round, all keys will be compared. The subsequent rounds of the comparison will be done on the previous results."`
 	CompareMode        int    `short:"m" long:"comparemode" default:"2" description:"compare mode, 1: compare full value, 2: only compare value length, 3: only compare keys outline, 4: compare full value, but only compare value length when meets big key"`
 	Id                 string `long:"id" default:"unknown" description:"used in metric, run id, useless for open source"`

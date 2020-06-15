@@ -2,10 +2,9 @@ package full_check
 
 import (
 	"strconv"
-	"fmt"
 
-	"full_check/common"
 	"full_check/client"
+	"full_check/common"
 
 	"github.com/jinzhu/copier"
 	"sync"
@@ -113,95 +112,4 @@ func (p *FullCheck) ScanFromSourceRedis(allKeys chan<- []*common.Key) {
 
 	wg.Wait()
 	close(allKeys)
-}
-
-func (p *FullCheck) ScanFromDB(allKeys chan<- []*common.Key) {
-	conflictKeyTableName, conflictFieldTableName := p.GetLastResultTable()
-
-	keyQuery := fmt.Sprintf("select id,key,type,conflict_type,source_len,target_len from %s where id>? and db=%d limit %d",
-		conflictKeyTableName, p.currentDB, p.BatchCount)
-	keyStatm, err := p.db[p.times-1].Prepare(keyQuery)
-	if err != nil {
-		panic(common.Logger.Error(err))
-	}
-	defer keyStatm.Close()
-
-	fieldQuery := fmt.Sprintf("select field,conflict_type from %s where key_id=?", conflictFieldTableName)
-	fieldStatm, err := p.db[p.times-1].Prepare(fieldQuery)
-	if err != nil {
-		panic(common.Logger.Error(err))
-	}
-	defer fieldStatm.Close()
-
-	var startId int64 = 0
-	for {
-		rows, err := keyStatm.Query(startId)
-		if err != nil {
-			panic(common.Logger.Error(err))
-		}
-		keyInfo := make([]*common.Key, 0, p.BatchCount)
-		for rows.Next() {
-			var key, keytype, conflictType string
-			var id, source_len, target_len int64
-			err = rows.Scan(&id, &key, &keytype, &conflictType, &source_len, &target_len)
-			if err != nil {
-				panic(common.Logger.Error(err))
-			}
-			oneKeyInfo := &common.Key{
-				Key:          []byte(key),
-				Tp:           common.NewKeyType(keytype),
-				ConflictType: common.NewConflictType(conflictType),
-				SourceAttr:   common.Attribute{ItemCount: source_len},
-				TargetAttr:   common.Attribute{ItemCount: target_len},
-			}
-			if oneKeyInfo.Tp == common.EndKeyType {
-				panic(common.Logger.Errorf("invalid type from table %s: key=%s type=%s ", conflictKeyTableName, key, keytype))
-			}
-			if oneKeyInfo.ConflictType == common.EndConflict {
-				panic(common.Logger.Errorf("invalid conflict_type from table %s: key=%s conflict_type=%s ", conflictKeyTableName, key, conflictType))
-			}
-
-			if oneKeyInfo.Tp != common.StringKeyType {
-				oneKeyInfo.Field = make([]common.Field, 0, 10)
-				rowsField, err := fieldStatm.Query(id)
-				if err != nil {
-					panic(common.Logger.Error(err))
-				}
-				for rowsField.Next() {
-					var field, conflictType string
-					err = rowsField.Scan(&field, &conflictType)
-					if err != nil {
-						panic(common.Logger.Error(err))
-					}
-					oneField := common.Field{
-						Field:        []byte(field),
-						ConflictType: common.NewConflictType(conflictType),
-					}
-					if oneField.ConflictType == common.EndConflict {
-						panic(common.Logger.Errorf("invalid conflict_type from table %s: field=%s type=%s ", conflictFieldTableName, field, conflictType))
-					}
-					oneKeyInfo.Field = append(oneKeyInfo.Field, oneField)
-				}
-				if err := rowsField.Err(); err != nil {
-					panic(common.Logger.Error(err))
-				}
-				rowsField.Close()
-			}
-			keyInfo = append(keyInfo, oneKeyInfo)
-			if startId < id {
-				startId = id
-			}
-		} // rows.Next
-		if err := rows.Err(); err != nil {
-			panic(common.Logger.Error(err))
-		}
-		rows.Close()
-		// 结束
-		if len(keyInfo) == 0 {
-			close(allKeys)
-			break
-		}
-		p.IncrScanStat(len(keyInfo))
-		allKeys <- keyInfo
-	} // for{}
 }
